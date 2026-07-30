@@ -1,0 +1,120 @@
+#Trending Videos
+from datetime import datetime, timezone,timedelta
+import os
+from googleapiclient.discovery import build
+import webbrowser
+
+print('----------------------------------------------------------')
+
+YOUTUBEAPI = 'AIzaSyCxHAwkSKGrDT83MbhDJ4tz3kcXxlGiqdc'
+API_SERVICE_NAME = 'youtube'
+API_VERSION = 'v3' 
+
+
+file_path = os.path.abspath(f"Short_Videos_Trending.txt")
+today_date = datetime.now(timezone.utc).date()
+date_for_videos = today_date - timedelta(days=7)
+#with open(file_path, "w",encoding="utf-8") as f:
+    #pass   #Create an empty file for today's date
+
+def vlog_videos(Genres):
+
+    youtube = build(API_SERVICE_NAME, API_VERSION, developerKey=YOUTUBEAPI)
+
+    for genre in Genres:
+
+        search_response = youtube.search().list(
+            part="snippet",
+            q=genre,
+            type="video",
+            videoDuration="short",  
+            order="viewCount",  
+            publishedAfter=date_for_videos.strftime("%Y-%m-%dT00:00:00Z"),  
+            maxResults=5,
+        ).execute()
+
+        video_ids = [item['id']['videoId'] for item in search_response.get('items',[])]
+        videos_response = (youtube.videos().list(
+            part="statistics,snippet",
+            id = ','.join(video_ids)).execute()
+        )
+
+
+        filtered_videos = []
+        for item in videos_response.get("items",[]):
+            stat = item.get("statistics",{})
+            view = int(stat.get("viewCount",0))
+            likes = int(stat.get("likeCount",0))
+            if view >= 50000 and likes >= 3000:
+                filtered_videos.append(item["id"])
+
+        print('Number of videos: ', len(filtered_videos))
+
+        for video_id in filtered_videos:
+        
+            action = input(f"Enter to watch or n to quit:     ")
+            if action == '':
+                print(f"Opening video: {video_id}")
+                webbrowser.open(f"https://www.youtube.com/watch?v={video_id}")
+            elif action == 'n':
+                break
+            
+
+def trending_videos():
+
+    youtube = build(API_SERVICE_NAME, API_VERSION, developerKey=YOUTUBEAPI)
+    file_path = os.path.abspath(f"Short_Videos_Trending.txt")
+
+    
+
+    videos_response = (youtube.videos().list(
+                      part="statistics,snippet",
+                      chart="mostPopular",
+                      regionCode="US",  
+                      maxResults=5,
+                      ).execute()
+                    )
+
+
+    filtered_videos = []
+    for item in videos_response.get("items",[]):
+        filtered_videos.append(item["id"])
+        
+
+    with open(file_path, "r",encoding="utf-8") as f:
+        videos_in_file = [line.strip() for line in f if line.strip()]
+   
+    current_videos = [x for x in filtered_videos if x not in videos_in_file]
+   
+    with open(file_path, "a",encoding="utf-8") as f:
+        for video_id in current_videos:
+            f.write(video_id)
+            f.write('\n')
+
+    print('Number of videos: ', len(current_videos))
+   
+    for video_id in current_videos:          
+        action = input(f"Enter to watch or n to quit:     ")
+        if action == '':
+            print(f"Opening video: {video_id}")
+            webbrowser.open(f"https://www.youtube.com/watch?v={video_id}")
+        elif action == 'n':
+            break
+
+
+
+def main():
+
+    category = ["Comedy", "Music", "Gaming", "Sports", "News", "Education", "Science & Technology",
+              "Travel & Adventure", "Food & Cooking", "Fashion & Beauty"]
+    category1 = ['vlog']
+    type_of_videos = input('Most trending videos or vlogs? (Enter "t or v"): ').strip().lower()
+    if type_of_videos == 't':
+        trending_videos()
+    elif type_of_videos == 'v':
+        vlog_videos(category1)
+    else:
+        print('Invalid input. Please enter "t" for trending videos or "v" for vlogs.')
+
+main()
+print('----------------------------------------------------------')
